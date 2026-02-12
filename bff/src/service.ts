@@ -1,5 +1,6 @@
 import { mapEvents, mapRepos, mapUser } from "./mappers";
 import { DashboardResponse, MockEventResponse, MockRepoResponse, MockUserResponse } from "./types";
+import { parseSettledFetchResponse } from "./utils";
 
 // Mock service base URLs
 const SERVICES = {
@@ -16,32 +17,32 @@ async function getUserDashboard(username: string): Promise<DashboardResponse> {
         errors: [],
     };
 
-    const [profile, repos, events] = await Promise.allSettled([
+    const [usersResponse, reposResponse, eventsResponse] = await Promise.allSettled([
         fetch(SERVICES.users(username)),
         fetch(SERVICES.repos(username)),
         fetch(SERVICES.events(username)),
     ]);
 
-    if (profile.status === "rejected" || !profile.value.ok) {
+    try {
+        const user = await parseSettledFetchResponse<MockUserResponse>(usersResponse);
+        dashboard.profile = mapUser(user);
+    } catch {
         dashboard.errors.push("users");
-    } else {
-        const body: MockUserResponse = await profile.value.json();
-        dashboard.profile = mapUser(body);
     }
 
-    if (repos.status === "rejected" || !repos.value.ok) {
-        dashboard.errors.push("repos");
-    } else {
-        const body: MockRepoResponse[] = await repos.value.json();
-        const top5 = [...body].sort((a, b) => b.stargazers - a.stargazers).slice(0, 5); // sort by most stars and take top 5
+    try {
+        const repos = await parseSettledFetchResponse<MockRepoResponse[]>(reposResponse);
+        const top5 = [...repos].sort((a, b) => b.stargazers - a.stargazers).slice(0, 5); // sort by most stars and take top 5
         dashboard.topRepos = mapRepos(top5);
+    } catch {
+        dashboard.errors.push("repos");
     }
 
-    if (events.status === "rejected" || !events.value.ok) {
+    try {
+        const events = await parseSettledFetchResponse<MockEventResponse[]>(eventsResponse);
+        dashboard.recentActivity = mapEvents(events);
+    } catch {
         dashboard.errors.push("events");
-    } else {
-        const body: MockEventResponse[] = await events.value.json();
-        dashboard.recentActivity = mapEvents(body);
     }
 
     return dashboard;
