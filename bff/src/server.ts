@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import { DashboardResponse, MockUserResponse, MockRepoResponse, MockEventResponse } from "./types";
 
 const app = express();
 const PORT = 3000;
@@ -13,61 +14,6 @@ const SERVICES = {
 
 app.use(cors());
 app.use(express.json());
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-// What the MOCK SERVICES return (different shapes!)
-interface MockUserResponse {
-    login: string;
-    full_name: string;
-    meta: { avatar_url: string; joined: string };
-    biography: string;
-    location: string;
-}
-
-interface MockRepoResponse {
-    repo_name: string;
-    stargazers: number;
-    primary_language: string | null;
-    description: string;
-    is_fork: boolean;
-}
-
-interface MockEventResponse {
-    id: string;
-    event_type: string;
-    repository: string;
-    created_at: string;
-    payload: Record<string, unknown>;
-}
-
-// What the FRONTEND expects
-interface Profile {
-    name: string;
-    avatar: string;
-    bio: string;
-}
-
-interface Repo {
-    name: string;
-    stars: number;
-    language: string;
-}
-
-interface ActivityEvent {
-    type: string;
-    repo: string;
-    date: string;
-}
-
-interface DashboardResponse {
-    profile: Profile | null;
-    topRepos: Repo[];
-    recentActivity: ActivityEvent[];
-    errors: string[];
-}
 
 app.get("/api/dashboard/:username", async (req, res) => {
     const { username } = req.params;
@@ -92,7 +38,7 @@ async function getUserInformation(username: string): Promise<DashboardResponse> 
 }
 
 async function handleServiceResponses(responses: PromiseSettledResult<Response>[]): Promise<DashboardResponse> {
-    let dashboardResponse: DashboardResponse = {
+    const dashboardResponse: DashboardResponse = {
         profile: null,
         topRepos: [],
         recentActivity: [],
@@ -119,14 +65,13 @@ async function handleServiceResponses(responses: PromiseSettledResult<Response>[
         const body: MockRepoResponse[] = await repos.value.json();
 
         // sort by most stars and take top 5
-        body.sort((a, b) => b.stargazers - a.stargazers);
-        const top5 = body.slice(0, 5);
+        const top5 = [...body].sort((a, b) => b.stargazers - a.stargazers).slice(0, 5);
 
         dashboardResponse.topRepos = top5.map((repo) => {
             return {
                 name: repo.repo_name,
                 stars: repo.stargazers,
-                language: repo.primary_language ?? "",
+                language: repo.primary_language ?? "Unknown",
             };
         });
     }
