@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { DashboardResponse, MockUserResponse, MockRepoResponse, MockEventResponse } from "./types";
+import { mapUser, mapRepos, mapEvents } from "./mappers";
 
 const app = express();
 const PORT = 3000;
@@ -51,43 +52,22 @@ async function handleServiceResponses(responses: PromiseSettledResult<Response>[
         dashboardResponse.errors.push("users");
     } else {
         const body: MockUserResponse = await profile.value.json();
-
-        dashboardResponse.profile = {
-            name: body.full_name,
-            avatar: body.meta.avatar_url,
-            bio: body.biography,
-        };
+        dashboardResponse.profile = mapUser(body);
     }
 
     if (repos.status === "rejected" || !repos.value.ok) {
         dashboardResponse.errors.push("repos");
     } else {
         const body: MockRepoResponse[] = await repos.value.json();
-
-        // sort by most stars and take top 5
-        const top5 = [...body].sort((a, b) => b.stargazers - a.stargazers).slice(0, 5);
-
-        dashboardResponse.topRepos = top5.map((repo) => {
-            return {
-                name: repo.repo_name,
-                stars: repo.stargazers,
-                language: repo.primary_language ?? "Unknown",
-            };
-        });
+        const top5 = [...body].sort((a, b) => b.stargazers - a.stargazers).slice(0, 5); // sort by most stars and take top 5
+        dashboardResponse.topRepos = mapRepos(top5);
     }
 
     if (events.status === "rejected" || !events.value.ok) {
         dashboardResponse.errors.push("events");
     } else {
         const body: MockEventResponse[] = await events.value.json();
-
-        dashboardResponse.recentActivity = body.map((activity) => {
-            return {
-                type: activity.event_type,
-                repo: activity.repository,
-                date: activity.created_at,
-            };
-        });
+        dashboardResponse.recentActivity = mapEvents(body);
     }
 
     return dashboardResponse;
