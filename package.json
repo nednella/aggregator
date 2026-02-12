@@ -1,0 +1,14 @@
+{
+  "name": "devdash",
+  "private": true,
+  "scripts": {
+    "dev:mock": "cd mock-services && npm run dev",
+    "dev:bff": "cd bff && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev": "concurrently \"npm run dev:mock\" \"npm run dev:bff\" \"npm run dev:frontend\"",
+    "setup": "cd mock-services && npm install && cd ../bff && npm install && cd ../frontend && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}
